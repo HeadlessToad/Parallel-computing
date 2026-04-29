@@ -1,4 +1,4 @@
-/* <Replace this comment with your ID and Name> */
+/* Omri Asudon 208853598 */
 #include <xmmintrin.h>
 #include <stdio.h>
 #include <stdlib.h>

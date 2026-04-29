@@ -1,4 +1,4 @@
-/* <Replace this comment with your ID and Name> */
+/* Omri Asudon 208853598 */
 
 long decode_c_version(long x, long y, long z) {
     // subq %rdx, %rsi
