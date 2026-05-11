@@ -1,4 +1,4 @@
-/* <Replace this comment with your ID and Name> */
+/* Omri Asudon 208853598 */
 #include <emmintrin.h>   // SSE2
 #include <smmintrin.h>   // SSE4.1
 #include <string.h>

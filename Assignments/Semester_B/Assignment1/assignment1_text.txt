@@ -1,0 +1,133 @@
+--- Page 1 ---
+Assignment 1: Assembly
+Bar-Ilan CS 89-3312
+Parallel Systems Programming
+March 29, 2026
+Objective
+In this assignment, you will implement four tasks that utilize SIMD capabilities, both through
+assembly and intrinsics. The focus is on performance optimization using SSE / SSE4.2 instructions.
+Submission
+At the end of the assignment, you will find guidelines on how to submit the code.
+Follow the rules and the required file names exactly!If it says to submitttttt.c, then
+you must uploadttttt.cwith that exact name.
+1
+--- Page 2 ---
+Task 1: Decode Function Implementation (Warm-up)
+Background
+For a function,
+long decode(long x, long y, long z);
+the following assembly code is generated.
+{Assembly (x86-64, AT\&T syntax)}
+decode:
+subq %rdx, %rsi
+imulq %rsi, %rdi
+movq %rsi, %rax
+salq $63, %rax
+sarq $63, %rax
+xorq %rdi, %rax
+ret
+Parametersx,y, andzare passed in registers%rdi,%rsi, and%rdx, respectively. The return
+value is stored in%rax.
+Requirements
+•Implementdecodein C with the same effect as the given assembly code.
+•Save your implementation in a file nameddecode.c.
+•Declare the function:
+long decode_c_version(long x, long y, long z);
+2
+--- Page 3 ---
+Task 2: String Length with SSE
+Background
+The provided_strlenfunction calculates the length of a string in assembly:
+_strlen:
+pushq %rcx # Save rcx on stack
+xorl %ecx, %ecx # Zero counter (faster than ‘xorq %rcx, %rcx‘)
+_strlen_next:
+cmpb $0, (%rdi) # Compare byte at rdi with 0 (null terminator)
+je _strlen_done # If zero, exit loop
+incq %rcx # Increment character count
+incq %rdi # Move to the next character
+jmp _strlen_next # Repeat
+_strlen_done:
+movq %rcx, %rax # Move counter to return value (rax)
+popq %rcx # Restore rcx
+ret # Return to caller
+Requirements
+•Implementstrlen_sse42an optimized version of thestrlenfunction using SIMD instruc-
+tions (specifically SSE) in x86-64 assembly.
+Notes
+In the lectures, many assembly instructions may have appeared using both Intel and AT&T syntax.
+As part of this assignment, students are expected to research and understand the correct syntax,
+operandorder, andusageofinstructionssuchaspcmpistri,pcmpistrm, andotherSIMDoperations.
+Discovering how to use these instructions properly, especially their behavior, operand rules, and
+control byte configuration (imm8)—is a core part of the learning process.
+Instructions likepcmpistriandpcmpistrmrequire careful setup. Research their operand usage
+and control byte (imm8).
+Example AT&T Syntax
+pcmpistri $imm8, %xmm, %xmm
+3
+--- Page 4 ---
+Task 3: Hamming Distance
+In this part, you will implement string operations using intrinsics.
+Open thestringsfolder using your text editor of choice. The main function runs a function
+that receives two strings and prints the result of an operation on them.
+Your task is to implement theHamming Distancefunction using intrinsics in C.
+Definition
+The Hamming Distance of two strings is the number of positions where the corresponding characters
+are different.
+Requirements
+•Implement the function using intrinsics.
+•If the strings are not the same length, the difference in their lengths should be added to the
+final Hamming distance.
+Implementation Details
+•Use intrinsics to compare multiple characters at a time, instead of checking one character at
+a time in a loop.
+•Store the comparison results in a vector register and count the differences efficiently.
+Input Example
+str1 = "hello world"
+str2 = "hxllo worl!"
+Output
+Hamming Distance = 2
+Function Signature
+int hamming_dist(char str1[MAX_STR], char str2[MAX_STR]);
+File Name
+hamming_intrinsics.c
+4
+--- Page 5 ---
+Task 4: The Formula
+For this part, open theformulasfolder.
+Themainfunction runs the functions defined informulas.hon test values and compares their
+results to the correct results.
+Since floating point arithmetic is involved, rounding errors may occur. To compare results, the
+helper functionis_close(defined inmain.c) is used.
+Problem Description
+Given an array of floating-point numbersxand its lengthn, compute:
+s
+1 +
+3
+pPn
+k=1
+√xkQn
+k=1(x2
+k + 1)
+Requirements
+•Implement the function using intrinsics.
+•Write the implementation in a file namedformula1.c.
+Function Signature
+float formula1(float *x, unsigned int length);
+Submission Guidelines
+1. Work can be done individually or in pairs.
+2. Submission is throughsubmit.
+3. Ensure your code compiles and runs without errors or warnings onBIU servers.
+4.Deadline: 7.5.2026
+5. In the first line of every submitted file, include a comment with your ID and full name.
+Example:
+/* 123456789 Israela Israeli */
+6. Failure to use SSE/AVX (intrinsics or pure assembly) where required will result in an auto-
+matic score of 0.
+7. Submit a zip file namedex1.zipcontaining:
+ex1.zip
+decode.c
+strlen_sse42.s
+hamming_intrinsics.c
+formula1.c
+5
