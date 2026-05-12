@@ -1,0 +1,201 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{hyperref}
+
+\title{Assignment 2: Theory \& pthread}
+\author{Your Name \and Your ID}
+\date{May 2026}
+
+\begin{document}
+\maketitle
+
+\section{Question 1: Parentheses}
+
+\subsection{Pseudocode}
+\begin{algorithm}
+\caption{Check Balanced Parentheses in Parallel}
+\begin{algorithmic}[1]
+\State \textbf{Input:} Array $S$ of characters of length $n$.
+\State \textbf{Output:} \texttt{true} if balanced, \texttt{false} otherwise.
+\State \textbf{Step 1:} In parallel for all $0 \le i < n$:
+\State \quad If $S[i] == \text{'('}$, set $A[i] \gets 1$.
+\State \quad Else if $S[i] == \text{')'}$, set $A[i] \gets -1$.
+\State \quad Else, set $A[i] \gets 0$.
+\State \textbf{Step 2:} Compute the parallel prefix sum of $A$ into an array $P$. 
+\State \quad So $P[i] = \sum_{j=0}^i A[j]$.
+\State \textbf{Step 3:} Compute the minimum value in $P$ into $min\_val$ using parallel reduction.
+\State \textbf{Step 4:} Check the last element $P[n-1]$ and $min\_val$.
+\State \quad If $P[n-1] == 0$ and $min\_val \ge 0$, return \texttt{true}.
+\State \quad Else, return \texttt{false}.
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Explanation}
+We transform the problem of matching parentheses into a prefix sum problem. Every opening parenthesis '(' is assigned a weight of 1, every closing parenthesis ')' is assigned a weight of -1, and all other characters (numbers, operators) are assigned 0. A sequence of parentheses is balanced if and only if two conditions are met:
+1. Every closing parenthesis has a corresponding preceding opening parenthesis. This means the prefix sum at any point must never drop below 0.
+2. Every opening parenthesis has a corresponding closing parenthesis. This means the total sum at the end of the sequence must be exactly 0.
+We compute the prefix sums in parallel, then use a parallel reduction to find the minimum prefix sum, and finally verify both conditions.
+
+\subsection{Proof of Correctness}
+\begin{proof}
+Let $A$ be the weight array and $P$ be its prefix sum array.
+$(\Rightarrow)$ Assume $S$ has balanced parentheses. By definition of balanced parentheses, there are an equal number of '(' and ')', which means $\sum_{i=0}^{n-1} A[i] = P[n-1] = 0$. Furthermore, in any valid prefix of a balanced sequence, the number of ')' cannot exceed the number of '('. Thus, $P[i] \ge 0$ for all $i$. Therefore, the minimum value in $P$ is at least 0. The algorithm returns \texttt{true}.
+
+$(\Leftarrow)$ Assume the algorithm returns \texttt{true}. Then $P[n-1] = 0$ and $\min_{i} P[i] \ge 0$. Since $P[n-1] = 0$, the total number of '(' equals the total number of ')'. Since $P[i] \ge 0$ for all $i$, no prefix has more ')' than '('. Thus, we can uniquely match every ')' with an available preceding '('. This satisfies the condition for proper nesting and balanced parentheses.
+\end{proof}
+
+\subsection{Runtime Analysis}
+Step 1 assigns values independently in $O(1)$ time with $n$ processors.
+Step 2 calculates the prefix sum using the parallel scan algorithm, which takes $O(\log n)$ time with $O(n)$ work.
+Step 3 finds the minimum using parallel tree reduction, taking $O(\log n)$ time.
+Step 4 evaluates conditions in $O(1)$ time.
+Overall parallel time complexity: $O(\log n)$ using $O(n)$ processors.
+
+\section{Question 2: Counting subarrays with a given sum}
+
+\subsection{Part 1: Positive numbers only}
+
+\subsubsection{Pseudocode}
+\begin{algorithm}
+\caption{Count Subarrays with sum $b$ (Positive Array)}
+\begin{algorithmic}[1]
+\State \textbf{Input:} Array $A$ of $n$ positive numbers, target sum $b$.
+\State \textbf{Step 1:} Compute prefix sum array $P$ such that $P[i] = \sum_{j=1}^i A[j]$. Let $P[0] = 0$.
+\State \textbf{Step 2:} In parallel for all $1 \le i \le n$:
+\State \quad Perform a binary search in $P$ for the value $P[i] - b$.
+\State \quad If found, set $C[i] \gets 1$. Else, set $C[i] \gets 0$.
+\State \textbf{Step 3:} Compute the total sum of array $C$ using parallel reduction.
+\State \textbf{Step 4:} Return the total sum.
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Explanation}
+Since all elements are strictly positive ($A[i] > 0$), the prefix sums array $P$ is strictly monotonically increasing. A contiguous subarray $A[j \dots i]$ has a sum exactly equal to $b$ if and only if $P[i] - P[j-1] = b$, which implies $P[j-1] = P[i] - b$. Since $P$ is sorted, we can simply binary search for the target value $P[i] - b$ in the array $P$.
+
+\subsubsection{Proof of Correctness}
+\begin{proof}
+Because $A[i] > 0$ for all $i$, $P[i] > P[i-1]$, making $P$ strictly monotonically increasing. For any fixed index $i$, the sum of the subarray ending at $i$ and starting at $j$ is $P[i] - P[j-1]$. We are looking for $j$ such that $P[i] - P[j-1] = b \iff P[j-1] = P[i] - b$. Because $P$ is strictly increasing, there is at most one index $j-1$ with this value. A binary search will correctly and uniquely identify if such a $j$ exists. By doing this for all $i$ independently and summing the results, we count all valid subarrays exactly once.
+\end{proof}
+
+\subsubsection{Runtime Analysis}
+Step 1: Parallel prefix sum takes $O(\log n)$ time.
+Step 2: Binary search takes $O(\log n)$ time. $n$ processors perform this independently, so it takes $O(\log n)$ parallel time.
+Step 3: Parallel reduction sum takes $O(\log n)$ time.
+Overall parallel time complexity: $O(\log n)$ with $O(n)$ processors.
+
+\subsection{Part 2: General case}
+
+\subsubsection{Pseudocode}
+\begin{algorithm}
+\caption{Count Subarrays with sum $b$ (General Array)}
+\begin{algorithmic}[1]
+\State \textbf{Input:} Array $A$ of $n$ integers, target sum $b$.
+\State \textbf{Step 1:} Compute prefix sum array $P$ such that $P[i] = \sum_{j=1}^i A[j]$. $P[0] = 0$.
+\State \textbf{Step 2:} Create an array of pairs $M[i] = (P[i], i)$ for $0 \le i \le n$.
+\State \textbf{Step 3:} Parallel Sort the array $M$ primarily by the prefix sum value, and secondarily by index $i$.
+\State \textbf{Step 4:} In parallel for all $1 \le i \le n$:
+\State \quad Let $target = P_{original}[i] - b$.
+\State \quad Use binary search on $M$ to find the range $[L, R]$ of pairs where the first element is $target$.
+\State \quad Use binary search within the range $[L, R]$ (based on the second element) to count how many pairs have an index $j < i$.
+\State \quad Let $C[i]$ be this count.
+\State \textbf{Step 5:} Return the sum of $C$ using parallel reduction.
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Explanation}
+When elements can be negative or zero, the prefix sum array is no longer monotonic. Therefore, multiple prefix sums can have the same value. A subarray $A[j \dots i]$ sums to $b$ if $P[i] - P[j-1] = b$, so $P[j-1] = P[i] - b$ and $j-1 < i$.
+To find all such $j-1$ efficiently in parallel, we sort the prefix sums alongside their original indices. For each index $i$, we binary search in the sorted array to find the block of identical prefix sums equal to $P[i] - b$. Within this block, the indices are sorted, so another binary search tells us exactly how many of them occurred before index $i$.
+
+\subsubsection{Proof of Correctness}
+\begin{proof}
+For a subarray ending at $i$, its sum is $b$ if the prefix sum before it equals $P[i] - b$. Since $M$ contains all prefix sums paired with their indices and is sorted by the prefix sum value, all occurrences of the value $P[i] - b$ are contiguous in $M$. Let this contiguous block be $[L, R]$. We only care about occurrences that happen before $i$, i.e., index $j < i$. Since the secondary sorting key is the original index, the block $[L, R]$ is sorted by index. Thus, a binary search correctly counts the number of valid indices strictly less than $i$. Summing these counts over all $i$ yields the exact number of valid subarrays.
+\end{proof}
+
+\subsubsection{Runtime Analysis}
+Step 1: Parallel prefix sum takes $O(\log n)$ time.
+Step 2: $O(1)$ time.
+Step 3: Parallel merge sort (e.g., Cole's algorithm) takes $O(\log n)$ time, or bitonic sort takes $O(\log^2 n)$ time.
+Step 4: Two binary searches take $O(\log n)$ time per processor, taking $O(\log n)$ parallel time overall.
+Step 5: Parallel reduction takes $O(\log n)$ time.
+Overall parallel time complexity: $O(\log^2 n)$ (or $O(\log n)$ depending on the chosen sorting algorithm) with $O(n)$ processors.
+
+\section{Question 3: k-th Ancestor in a Rooted Tree}
+
+\subsection{Pseudocode}
+\begin{algorithm}
+\caption{Parallel k-th Ancestor}
+\begin{algorithmic}[1]
+\State \textbf{Input:} Parent array $parent$ of size $n$, $k$.
+\State \textbf{Step 1:} Initialize an array $up[n][\lfloor \log_2 k \rfloor + 1]$.
+\State \textbf{Step 2:} In parallel for all $0 \le i < n$:
+\State \quad $up[i][0] \gets parent[i]$
+\State \textbf{Step 3:} For $j = 1$ to $\lfloor \log_2 k \rfloor$:
+\State \quad In parallel for all $0 \le i < n$:
+\State \quad \quad If $up[i][j-1] \neq -1$:
+\State \quad \quad \quad $up[i][j] \gets up[\,up[i][j-1]\,][j-1]$
+\State \quad \quad Else:
+\State \quad \quad \quad $up[i][j] \gets -1$
+\State \textbf{Step 4:} In parallel for all $0 \le i < n$:
+\State \quad Let $curr \gets i$.
+\State \quad For $j = 0$ to $\lfloor \log_2 k \rfloor$:
+\State \quad \quad If the $j$-th bit of $k$ is $1$:
+\State \quad \quad \quad $curr \gets up[curr][j]$
+\State \quad \quad \quad If $curr == -1$, break
+\State \quad $Ans[i] \gets curr$
+\State \textbf{Return} $Ans$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Explanation}
+This uses the pointer jumping (binary lifting) technique. The table $up[i][j]$ stores the $2^j$-th ancestor of node $i$. The base case is $up[i][0] = parent[i]$. The recursive relation is that the $2^j$-th ancestor is the $2^{j-1}$-th ancestor of the $2^{j-1}$-th ancestor. We compute this table in parallel layer by layer (for each $j$). Since the maximum jump distance is $k$, we only need $\log_2 k$ columns. After building the table, for each node $i$, we can find its $k$-th ancestor by iterating over the set bits in the binary representation of $k$ and jumping accordingly. 
+
+\subsection{Proof of Correctness}
+\begin{proof}
+We prove by induction on $j$ that $up[i][j]$ correctly stores the $2^j$-th ancestor of $i$.
+Base case: $j=0$, $up[i][0] = parent[i]$, which is the $2^0=1$-st ancestor.
+Inductive step: Assume $up[x][j-1]$ is the $2^{j-1}$-th ancestor of $x$. For any $i$, let $x = up[i][j-1]$ be its $2^{j-1}$-th ancestor. The $2^j$-th ancestor of $i$ is exactly the $2^{j-1}$-th ancestor of $x$, which is $up[x][j-1]$. Our algorithm sets $up[i][j] = up[x][j-1]$, thus the statement holds.
+For the query phase, $k$ can be uniquely represented as a sum of powers of 2. Making jumps corresponding to these powers of 2 sequentially traces exactly $k$ steps up the tree. Thus, $Ans[i]$ will correctly store the $k$-th ancestor.
+\end{proof}
+
+\subsection{Runtime Analysis}
+Step 1: Initialization takes $O(1)$ time.
+Step 2: Takes $O(1)$ time with $n$ processors.
+Step 3: The loop runs $\log_2 k$ times. Inside the loop, the operations take $O(1)$ parallel time with $n$ processors. Thus, it takes $O(\log k)$ time overall.
+Step 4: The inner loop runs $\log_2 k$ times, with each iteration taking $O(1)$. With $n$ processors, this step takes $O(\log k)$ parallel time.
+Overall parallel time complexity: $O(\log k)$ with $O(n)$ processors.
+
+\section{Question 4: Trapping Rain Water}
+
+\subsection{Pseudocode}
+\begin{algorithm}
+\caption{Parallel Trapping Rain Water}
+\begin{algorithmic}[1]
+\State \textbf{Input:} Array $height$ of length $n$.
+\State \textbf{Step 1:} Compute parallel prefix maximum array $L$ such that $L[i] = \max_{j=0}^i height[j]$.
+\State \textbf{Step 2:} Compute parallel suffix maximum array $R$ such that $R[i] = \max_{j=i}^{n-1} height[j]$.
+\State \textbf{Step 3:} In parallel for all $0 \le i < n$:
+\State \quad $W[i] \gets \max(0, \min(L[i], R[i]) - height[i])$
+\State \textbf{Step 4:} Return the sum of $W$ using parallel reduction.
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Explanation}
+The amount of water that can be trapped above a specific bar $i$ depends on the highest bar to its left and the highest bar to its right. Specifically, the trapped water is determined by the minimum of the maximum height to its left ($L[i]$) and the maximum height to its right ($R[i]$). The water above bar $i$ is exactly $\min(L[i], R[i]) - height[i]$, bounded below by 0.
+We can use a parallel prefix scan (using the `max` operator instead of `+`) to compute the highest bar to the left for all positions in parallel. A similar suffix scan computes the highest bar to the right. Finally, we calculate the water at each index in $O(1)$ parallel time and sum the results.
+
+\subsection{Proof of Correctness}
+\begin{proof}
+For any bar $i$, water can only be trapped if there are taller bars on both its left and its right. The water level at bar $i$ will rise until it spills over the shorter of the two highest boundaries, which is $\min(\max_{j \le i} height[j], \max_{k \ge i} height[k]) = \min(L[i], R[i])$. The actual volume of water trapped above bar $i$ is the difference between this water level and the height of the bar itself, $\min(L[i], R[i]) - height[i]$. Since a bar cannot have negative water, we take $\max(0, \dots)$. Summing these amounts over all bars gives the total trapped water. The parallel prefix and suffix maximums compute $L[i]$ and $R[i]$ correctly by the associative property of the max operator.
+\end{proof}
+
+\subsection{Runtime Analysis}
+Step 1: Parallel prefix max takes $O(\log n)$ time using the parallel scan algorithm.
+Step 2: Parallel suffix max takes $O(\log n)$ time.
+Step 3: Calculating $W[i]$ independently takes $O(1)$ time with $n$ processors.
+Step 4: Parallel sum reduction takes $O(\log n)$ time.
+Overall parallel time complexity: $O(\log n)$ with $O(n)$ processors.
+
+\end{document}

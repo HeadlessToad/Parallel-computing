@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "graph.h"
+#include "pagerank.h"
 
 #define D 0.15 // damping factor
 
@@ -11,7 +12,7 @@ void initializeRanks(float *ranks, int N) {
 }
 
 
-void PageRank(Graph *graph, int iterations, float* ranks) {
+void PageRank_serial(Graph *graph, int iterations, float* ranks) {
     int N = graph->numVertices;
     float *newRanks = (float *)malloc(N * sizeof(float));
     int* outlinkes = (int*)malloc(N* sizeof(int));
@@ -66,31 +67,59 @@ void PageRank(Graph *graph, int iterations, float* ranks) {
     free(newRanks);
 }
 
-int main(void) {
-    int N = 3; // number of nodes
-    int iterations = 100; // number of iterations
+#include <time.h>
 
+// Helper function to get current time in seconds
+double get_time() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec + ts.tv_nsec / 1e9;
+}
+
+int main(void) {
+    int N = 5000; // Large number of nodes
+    int iterations = 100; // Number of iterations
+    int num_edges = 50000; // Large number of edges
+
+    printf("Generating a graph with %d nodes and %d edges...\n", N, num_edges);
+    
     // Initialize the graph
     Graph *graph = createGraph(N);
-
-    // Example graph structure
-    addEdge(graph, 0, 1);
-    addEdge(graph, 0, 2);
-    addEdge(graph, 1, 0);
-    addEdge(graph, 1, 2);
-    addEdge(graph, 2, 0);
-
-
-    // Calculate PageRank
-    float *ranks = (float *)malloc(N * sizeof(float));
-
-    PageRank(graph, iterations, ranks);
-
     
-    // Print the ranks
-    for (int i = 0; i < N; i++) {
-        printf("Rank of node %d: %f\n", i, ranks[i]);
+    // Seed random number generator
+    srand(42);
+    
+    // Add random edges
+    for (int i = 0; i < num_edges; i++) {
+        int u = rand() % N;
+        int v = rand() % N;
+        addEdge(graph, u, v);
     }
+
+    // Create two arrays to hold the results
+    float *ranks_serial = (float *)malloc(N * sizeof(float));
+    float *ranks_parallel = (float *)malloc(N * sizeof(float));
+
+    printf("Running Serial PageRank...\n");
+    double start_serial = get_time();
+    PageRank_serial(graph, iterations, ranks_serial);
+    double end_serial = get_time();
+    
+    printf("Running Parallel PageRank...\n");
+    double start_parallel = get_time();
+    PageRank(graph, iterations, ranks_parallel);
+    double end_parallel = get_time();
+    
+    // Verify results match (check the first 5 nodes)
+    printf("\n--- Results (First 5 nodes) ---\n");
+    for (int i = 0; i < 5; i++) {
+        printf("Node %d: Serial = %f, Parallel = %f\n", i, ranks_serial[i], ranks_parallel[i]);
+    }
+    
+    printf("\n--- Performance Comparison ---\n");
+    printf("Serial Time:   %f seconds\n", end_serial - start_serial);
+    printf("Parallel Time: %f seconds\n", end_parallel - start_parallel);
+    printf("Speedup:       %.2fx\n", (end_serial - start_serial) / (end_parallel - start_parallel));
     
     // Free allocated memory
     for (int i = 0; i < N; i++) {
@@ -101,9 +130,9 @@ int main(void) {
             free(temp);
         }
     }
-    
 
-    free(ranks);
+    free(ranks_serial);
+    free(ranks_parallel);
     free(graph->adjacencyLists);
     free(graph);
 
