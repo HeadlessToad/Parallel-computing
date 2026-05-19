@@ -1,5 +1,5 @@
-/* Omri Asudon 208853598 */
-/* Matan Kronfeld 211465968 */
+/* 208853598 Omri Asudon */
+/* 211465968 Matan Kronfeld */
 #include "pagerank.h"
 #include "thr_pool.h"
 #include <stdlib.h>
@@ -33,6 +33,7 @@ void* compute_ranks(void* arg) {
 }
 
 void PageRank(Graph* g, int n, float* rank) {
+    if (g == NULL || g->numVertices == 0 || n <= 0) return;
     int N = g->numVertices;
     
     // Allocate arrays for graph traversal
