@@ -1,5 +1,5 @@
-/* Omri Asudon 208853598 */
-/* Matan Kronfeld 211465968 */
+/* 208853598 Omri Asudon */
+/* 211465968 Matan Kronfeld */
 #ifndef PAGERANK_H
 #define PAGERANK_H
 
